@@ -389,7 +389,7 @@
   .field:last-child{margin-bottom:0;}
   .field > span{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;letter-spacing:.04em;}
 
-  input[type="text"],textarea{
+  input[type="text"],input[type="password"],textarea{
     width:100%;
     padding:11px 13px;
     border-radius:11px;
@@ -401,8 +401,8 @@
     resize:vertical;
     transition:.25s ease;
   }
-  input[type="text"]::placeholder,textarea::placeholder{color:rgba(17,17,17,.3);}
-  input[type="text"]:focus,textarea:focus{
+  input[type="text"]::placeholder,input[type="password"]::placeholder,textarea::placeholder{color:rgba(17,17,17,.3);}
+  input[type="text"]:focus,input[type="password"]:focus,textarea:focus{
     border-color:#111;
     background:#ffffff;
     box-shadow:0 0 0 3px rgba(17,17,17,.07);
@@ -636,13 +636,20 @@
     </section>
 
     <section class="card">
+      <h3>云端同步</h3>
+      <label class="field"><span>管理密码</span><input type="password" id="edPassword" autocomplete="off" placeholder="填写后保存会同步到云端，所有访客可见"></label>
+      <p class="hint" id="cloudStatus"></p>
+      <p class="hint">第一次保存时，这里填的密码会成为你的管理密码（想好再填，之后改密码要找我）。之后每次保存填同一个密码，内容就会同步到云端，全世界的访客都能看到。不填则只改这台设备。</p>
+    </section>
+
+    <section class="card">
       <h3>数据</h3>
       <div style="display:flex;flex-wrap:wrap;gap:10px">
         <button class="btn" id="btnExport" type="button">导出配置</button>
         <button class="btn" id="btnImport" type="button">导入配置</button>
         <button class="btn btn-text" id="btnReset" type="button">恢复默认</button>
       </div>
-      <p class="hint">修改只保存在你当前这台设备上。想让线上访客也看到新内容：点「导出配置」，再把复制到的内容粘贴到 index.html 里的 SEED 处。</p>
+      <p class="hint">现在内容存在云端，「导出配置」主要用来备份或迁移到别的云端项目。恢复默认同样受管理密码保护。</p>
     </section>
   </div>
 </div>
@@ -659,6 +666,10 @@
 
   var KEY = 'portfolio.v1';
 
+  /* 云端（Supabase）：保存后所有访客可见 */
+  var SUPA_URL = 'https://lffkvfcmbxbveqamxdidk.supabase.co';
+  var SUPA_KEY = 'sb_publishable_LVM8OGz9Oo2mTLuoFLR3zg_b5Pq6fs5';
+
   var DEFAULT_AVATAR = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">' +
     '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
@@ -671,9 +682,10 @@
   );
 
   /* ==================================================================
-     ↓↓↓ 默认内容 ↓↓↓
-     把「导出配置」复制到的内容，替换掉下面 SEED 这一段（大括号整段），
-     线上所有访客看到的就会是你改好的版本。
+     ↓↓↓ 默认内容（初始模板）↓↓↓
+     现在网站接了云端：编辑页填「管理密码」保存后，内容直接写进云端，
+     所有访客可见。这里的 SEED 只在云端还没有内容时作为初始显示，
+     以及「恢复默认」时使用，平时不需要动它。
      ================================================================== */
   var SEED = {
     avatar: DEFAULT_AVATAR,
@@ -779,19 +791,109 @@
   }
 
   function loadData() {
-    var raw = null;
-    try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { raw = null; }
+    var raw = getCache();
     if (raw && raw.fp === seedFp && raw.d) return normalize(raw.d);
     return normalize(SEED);
   }
 
-  function persist() {
+  function getCache() {
+    try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+  }
+
+  /* savedAt：本机最后一次「主动保存」的时刻（同步成功后改为云端服务器时间，
+     用来和云端 updated_at 比较谁更新） */
+  function persist(savedAt) {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ fp: seedFp, d: data }));
+      localStorage.setItem(KEY, JSON.stringify({
+        fp: seedFp,
+        d: data,
+        savedAt: savedAt || Date.now()
+      }));
       return true;
     } catch (e) {
       return false;
     }
+  }
+
+  /* ---------------- 云端（Supabase REST） ---------------- */
+  function cloudHeaders() {
+    return {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  function cloudErrText(err) {
+    var m = (err && err.message) || String(err || '');
+    if (m.indexOf('INVALID_PASSWORD') >= 0) return '管理密码不对';
+    if (m.indexOf('NO_PASSWORD_SET') >= 0) return '云端还没设置管理密码（先在 Supabase 跑建库 SQL 的最后一步）';
+    if (m.indexOf('fetch') >= 0 || m.indexOf('NetworkError') >= 0 || m.indexOf('Failed') >= 0) return '连不上云端，检查网络';
+    if (m.indexOf('404') >= 0 || m.indexOf('does not exist') >= 0) return '云端还没建数据表（先在 Supabase 跑建库 SQL）';
+    return m;
+  }
+
+  function fetchCloud(cb) {
+    fetch(SUPA_URL + '/rest/v1/site_content?id=eq.main&select=data,updated_at', { headers: cloudHeaders() })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (arr) {
+        if (arr && arr.length && arr[0] && arr[0].data) {
+          cb(null, { data: arr[0].data, updatedAt: Date.parse(arr[0].updated_at) || 0 });
+        } else {
+          cb(null, null);
+        }
+      })
+      .catch(function (e) { cb(e); });
+  }
+
+  function syncCloud(password, cb) {
+    fetch(SUPA_URL + '/rest/v1/rpc/save_site_content', {
+      method: 'POST',
+      headers: cloudHeaders(),
+      body: JSON.stringify({ p_password: password, p_data: data })
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) {
+          throw new Error((j && (j.message || j.msg)) || ('HTTP ' + r.status));
+        }
+        var ts = Date.parse(j);
+        cb(null, isNaN(ts) ? Date.now() : ts);
+      });
+    }).catch(function (e) { cb(e); });
+  }
+
+  function initCloudPassword(password, cb) {
+    fetch(SUPA_URL + '/rest/v1/rpc/init_admin_password', {
+      method: 'POST',
+      headers: cloudHeaders(),
+      body: JSON.stringify({ p_password: password })
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) {
+          throw new Error((j && (j.message || j.msg)) || ('HTTP ' + r.status));
+        }
+        cb(null);
+      });
+    }).catch(function (e) { cb(e); });
+  }
+
+  /* 保存 = 先尝试初始化密码（首次保存时生效；已设过则报 ALREADY_SET，忽略）
+     再用同一密码写内容 */
+  function syncAll(password, cb) {
+    initCloudPassword(password, function () {
+      syncCloud(password, cb);
+    });
+  }
+
+  function updateCloudStatus(err, cloud) {
+    var el = $('#cloudStatus');
+    if (!el) return;
+    if (err) el.textContent = '云端状态：连接失败（' + cloudErrText(err) + '）';
+    else if (!cloud) el.textContent = '云端状态：已连接，还没有保存过内容';
+    else el.textContent = '云端状态：正常，内容更新于 ' + new Date(cloud.updatedAt).toLocaleString('zh-CN');
   }
 
   var data = loadData();
@@ -933,6 +1035,7 @@
   /* ---------------- 编辑界面 ---------------- */
   var draft = null;
   var iconTargetId = null;
+  var edPassword = $('#edPassword');
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -941,6 +1044,7 @@
     fillEditor();
     els.editor.classList.add('open');
     els.editor.scrollTop = 0;
+    fetchCloud(function (err, cloud) { updateCloudStatus(err, cloud); });
   }
 
   function closeEditor() {
@@ -1141,13 +1245,27 @@
       works: works
     });
 
-    if (!persist()) {
+    if (!persist(Date.now())) {
       toast('保存失败：图片太大，换小一点的图片再试');
       return;
     }
     render();
     closeEditor();
-    toast('已保存');
+
+    var pw = (edPassword && edPassword.value) || '';
+    if (!pw) {
+      toast('已保存到本机；填「管理密码」可同步到云端');
+      return;
+    }
+    toast('已保存，正在同步云端…');
+    syncAll(pw, function (err, ts) {
+      if (err) {
+        toast('本机已保存，云端同步失败：' + cloudErrText(err));
+        return;
+      }
+      persist(ts);
+      toast('已保存并同步云端，所有访客可见');
+    });
   });
 
   $('#btnCancel').addEventListener('click', closeEditor);
@@ -1203,10 +1321,23 @@
       try {
         var obj = JSON.parse(String(r.result));
         data = normalize(obj);
-        if (!persist()) { toast('导入失败：数据太大'); return; }
+        if (!persist(Date.now())) { toast('导入失败：数据太大'); return; }
         render();
         closeEditor();
-        toast('已导入');
+        var pw = (edPassword && edPassword.value) || '';
+        if (!pw) {
+          toast('已导入（仅本机；填管理密码可同步云端）');
+          return;
+        }
+        toast('正在同步云端…');
+        syncAll(pw, function (err, ts) {
+          if (err) {
+            toast('本机已导入，云端同步失败：' + cloudErrText(err));
+            return;
+          }
+          persist(ts);
+          toast('已导入并同步云端');
+        });
       } catch (e) {
         toast('文件格式不对，需要「导出配置」生成的 json');
       }
@@ -1215,16 +1346,41 @@
   });
 
   $('#btnReset').addEventListener('click', function () {
-    if (!window.confirm('确定恢复默认内容吗？当前的修改会丢失。')) return;
+    if (!window.confirm('确定恢复默认内容吗？云端上已发布的内容也会被覆盖。')) return;
     data = normalize(SEED);
     try { localStorage.removeItem(KEY); } catch (e) {}
     render();
     closeEditor();
-    toast('已恢复默认');
+
+    var pw = (edPassword && edPassword.value) || '';
+    if (!pw) {
+      toast('已恢复默认（仅本机；填管理密码可同步云端）');
+      return;
+    }
+    toast('正在同步云端…');
+    syncAll(pw, function (err, ts) {
+      if (err) {
+        toast('本机已恢复，云端同步失败：' + cloudErrText(err));
+        return;
+      }
+      persist(ts);
+      toast('已恢复默认并同步云端');
+    });
   });
 
   /* ---------------- 启动 ---------------- */
   render();
+
+  /* 云端：启动后拉取最新内容（云端比本机新就采用云端） */
+  fetchCloud(function (err, cloud) {
+    if (err || !cloud) return;
+    var cache = getCache();
+    if (!cache || !cache.savedAt || cloud.updatedAt > cache.savedAt) {
+      data = normalize(cloud.data);
+      persist(cloud.updatedAt);
+      render();
+    }
+  });
 
   var skipIntro = false;
   try { skipIntro = sessionStorage.getItem('pf_entered') === '1'; } catch (e) {}
