@@ -283,6 +283,78 @@
     transition:.35s var(--ease);
   }
 
+  /* 顶部标签：个人 / 作品 */
+  .works-head{align-items:center;}
+  .tab-bar{
+    display:flex;gap:4px;
+    padding:4px;
+    border:1px solid rgba(17,17,17,.14);
+    border-radius:999px;
+    background:#ffffff;
+    width:max-content;
+  }
+  .tab-btn{
+    min-width:96px;
+    padding:7px 24px;
+    border:0;border-radius:999px;
+    background:transparent;
+    color:var(--muted);
+    font:inherit;font-size:13.5px;font-weight:500;
+    letter-spacing:.14em;
+    cursor:pointer;
+    transition:.3s var(--ease);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .tab-btn:hover{color:#111;}
+  .tab-btn.active{background:#111111;color:#ffffff;font-weight:600;}
+
+  /* 个人介绍页 */
+  .about-list{
+    flex:1 1 auto;min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    display:flex;flex-direction:column;gap:12px;
+    padding-right:10px;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(17,17,17,.18) transparent;
+  }
+  .about-list[hidden]{display:none;}
+  .works-list[hidden]{display:none;}
+  .about-card{
+    display:flex;gap:20px;align-items:stretch;
+    padding:20px 24px;
+    border-radius:18px;
+    border:1px solid rgba(17,17,17,.10);
+    background:#ffffff;
+    box-shadow:0 1px 2px rgba(17,17,17,.03);
+    opacity:0;transform:translateY(18px);
+    transition:opacity .6s var(--ease), transform .5s var(--ease),
+               border-color .35s ease, box-shadow .4s ease;
+  }
+  .about-card.in{opacity:1;transform:none;}
+  .about-main{flex:1;min-width:0;}
+  .about-title{
+    margin:0 0 8px;
+    font-size:16px;font-weight:600;letter-spacing:.01em;
+    color:#111;
+  }
+  .about-text{
+    margin:0;
+    font-size:14px;line-height:1.85;
+    color:#333333;
+    white-space:pre-line;
+  }
+  .about-fig{
+    flex:none;
+    width:clamp(120px,20%,200px);
+    min-height:96px;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid rgba(17,17,17,.08);
+    background:#f4f4f6;
+  }
+  .about-fig img{width:100%;height:100%;object-fit:cover;display:block;}
+
   .empty{
     display:flex;flex-direction:column;gap:7px;
     justify-content:center;align-items:flex-start;
@@ -472,6 +544,16 @@
   }
   .wr-del:hover{color:#111;border-color:rgba(17,17,17,.4);background:rgba(17,17,17,.06);}
 
+  .wr-thumb{
+    width:68px;height:46px;flex:none;
+    border-radius:8px;
+    background:#f4f4f6;
+    border:1px solid rgba(17,17,17,.08);
+    overflow:hidden;
+    display:grid;place-items:center;
+  }
+  .wr-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+
   .toast{
     position:fixed;left:50%;bottom:40px;
     transform:translate(-50%,16px);
@@ -488,11 +570,11 @@
   .toast.show{opacity:1;transform:translate(-50%,0);}
 
   /* 滚动条 */
-  .works-list::-webkit-scrollbar,.bio::-webkit-scrollbar,.editor::-webkit-scrollbar{width:6px;}
-  .works-list::-webkit-scrollbar-thumb,.bio::-webkit-scrollbar-thumb,.editor::-webkit-scrollbar-thumb{
+  .works-list::-webkit-scrollbar,.about-list::-webkit-scrollbar,.bio::-webkit-scrollbar,.editor::-webkit-scrollbar{width:6px;}
+  .works-list::-webkit-scrollbar-thumb,.about-list::-webkit-scrollbar-thumb,.bio::-webkit-scrollbar-thumb,.editor::-webkit-scrollbar-thumb{
     background:rgba(17,17,17,.18);border-radius:99px;
   }
-  .works-list::-webkit-scrollbar-track,.bio::-webkit-scrollbar-track,.editor::-webkit-scrollbar-track{background:transparent;}
+  .works-list::-webkit-scrollbar-track,.about-list::-webkit-scrollbar-track,.bio::-webkit-scrollbar-track,.editor::-webkit-scrollbar-track{background:transparent;}
 
   /* 跳过动画 */
   body.skip *{transition:none !important;animation:none !important;}
@@ -526,6 +608,11 @@
     .work-card{min-height:74px;padding:14px 16px;gap:14px;border-radius:16px;}
     .work-icon{width:44px;height:44px;border-radius:12px;}
     .work-title{font-size:15.5px;}
+    .tab-btn{min-width:72px;padding:6px 18px;font-size:12.5px;letter-spacing:.1em;}
+    .about-card{padding:15px 16px;gap:13px;border-radius:16px;}
+    .about-title{font-size:15px;}
+    .about-text{font-size:13.5px;line-height:1.75;}
+    .about-fig{width:104px;min-height:80px;}
     .gear{width:46px;height:46px;}
     .editor-bar{padding:12px 16px;}
     .btn{padding:9px 14px;font-size:13.5px;}
@@ -572,10 +659,14 @@
 
   <main class="works-panel">
     <header class="works-head">
-      <h2>作品</h2>
+      <div class="tab-bar" id="tabBar" role="tablist" aria-label="内容切换">
+        <button class="tab-btn" data-tab="about" type="button">个人</button>
+        <button class="tab-btn active" data-tab="works" type="button">作品</button>
+      </div>
       <span class="works-count" id="workCount"></span>
     </header>
     <div class="works-list" id="worksList"></div>
+    <div class="about-list" id="aboutList" hidden></div>
   </main>
 
   <button class="gear" id="gearBtn" type="button" aria-label="设置">
@@ -628,6 +719,15 @@
 
     <section class="card">
       <div class="card-head">
+        <h3>个人介绍页（顶部「个人」标签）</h3>
+        <button class="btn tiny" id="btnAddAbout" type="button">+ 添加卡片</button>
+      </div>
+      <div id="aboutRows"></div>
+      <p class="hint">每张卡片：左上角是标题，下面是说明文字。可以上传一张图片显示在卡片右侧；不上传图片就不留图区。</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
         <h3>作品</h3>
         <button class="btn tiny" id="btnAddWork" type="button">+ 添加作品</button>
       </div>
@@ -653,6 +753,7 @@
 
 <input type="file" id="fileAvatar" accept="image/*" hidden>
 <input type="file" id="fileIcon" accept="image/*" hidden>
+<input type="file" id="fileAboutImg" accept="image/*" hidden>
 <input type="file" id="fileImport" accept="application/json,.json" hidden>
 
 <div class="toast" id="toast"></div>
@@ -691,6 +792,11 @@
       { id: 'w2', title: '个人小工具',   icon: '💻', link: '' },
       { id: 'w3', title: '写过的字',     icon: '📖', link: '' },
       { id: 'w4', title: '声音实验',     icon: '🎧', link: '' }
+    ],
+    abouts: [
+      { id: 'a1', title: '在做什么', text: '在做视觉设计，也写代码。\n喜欢把脑子里那些模糊的想法，变成能点开、能摸到的东西。', image: '' },
+      { id: 'a2', title: '怎么工作', text: '先想清楚再动手，小步快跑，边做边改。\n比起等一个完美方案，更喜欢先做出能用的版本，再一点点打磨。', image: '' },
+      { id: 'a3', title: '找到我', text: '右下角的齿轮是我的入口，也可以通过作品列表里的链接找到我。', image: '' }
     ]
   };
   /* ================================================================== */
@@ -713,6 +819,9 @@
     mainBio: $('#mainBio'),
     workCount: $('#workCount'),
     worksList: $('#worksList'),
+    tabBar: $('#tabBar'),
+    aboutList: $('#aboutList'),
+    aboutRows: $('#aboutRows'),
     gearBtn: $('#gearBtn'),
     gearMenu: $('#gearMenu'),
     editor: $('#editor'),
@@ -724,6 +833,7 @@
     workRows: $('#workRows'),
     fileAvatar: $('#fileAvatar'),
     fileIcon: $('#fileIcon'),
+    fileAboutImg: $('#fileAboutImg'),
     fileImport: $('#fileImport'),
     toast: $('#toast')
   };
@@ -770,16 +880,28 @@
     };
   }
 
+  function normalizeAbout(a) {
+    if (!a || typeof a !== 'object') return null;
+    return {
+      id: a.id || uid(),
+      title: typeof a.title === 'string' ? a.title : '',
+      text: typeof a.text === 'string' ? a.text : '',
+      image: typeof a.image === 'string' ? a.image : ''
+    };
+  }
+
   function normalize(d) {
     d = d || {};
     var works = Array.isArray(d.works) ? d.works.map(normalizeWork).filter(Boolean) : [];
+    var abouts = Array.isArray(d.abouts) ? d.abouts.map(normalizeAbout).filter(Boolean) : [];
     return {
       avatar: (typeof d.avatar === 'string' && d.avatar) ? d.avatar : DEFAULT_AVATAR,
       welcome: typeof d.welcome === 'string' ? d.welcome : SEED.welcome,
       name: typeof d.name === 'string' ? d.name : '',
       tagline: typeof d.tagline === 'string' ? d.tagline : '',
       bio: typeof d.bio === 'string' ? d.bio : '',
-      works: works
+      works: works,
+      abouts: abouts
     };
   }
 
@@ -819,11 +941,12 @@
     els.mainRule.style.display = (data.name || data.tagline || data.bio) ? '' : 'none';
 
     renderWorks();
+    renderAbouts();
+    updateCount();
   }
 
   function renderWorks() {
     els.worksList.innerHTML = '';
-    els.workCount.textContent = data.works.length ? pad(data.works.length).slice(-2) : '';
 
     if (!data.works.length) {
       var em = document.createElement('div');
@@ -862,6 +985,69 @@
       })(cards[i], i);
     }
   }
+
+  /* ---------------- 标签切换 / 个人介绍页 ---------------- */
+  var currentTab = 'works';
+
+  function switchTab(tab) {
+    if (currentTab === tab) return;
+    currentTab = tab;
+    var btns = els.tabBar.querySelectorAll('.tab-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-tab') === tab);
+    }
+    var isWorks = tab === 'works';
+    els.worksList.hidden = !isWorks;
+    els.aboutList.hidden = isWorks;
+    updateCount();
+    if (!isWorks) revealAbouts(false);
+  }
+
+  function updateCount() {
+    var n = currentTab === 'works' ? data.works.length : data.abouts.length;
+    els.workCount.textContent = n ? pad(n).slice(-2) : '';
+  }
+
+  function renderAbouts() {
+    els.aboutList.innerHTML = '';
+
+    if (!data.abouts.length) {
+      var em = document.createElement('div');
+      em.className = 'empty';
+      em.innerHTML = '这里还没有内容<br><span>点右下角齿轮 → 修改信息 → 「个人介绍页」添加卡片</span>';
+      els.aboutList.appendChild(em);
+      return;
+    }
+
+    data.abouts.forEach(function (a) {
+      var card = document.createElement('div');
+      card.className = 'about-card';
+      var html = '<div class="about-main">';
+      html += '<h3 class="about-title">' + (esc(a.title) || '未命名') + '</h3>';
+      if (a.text) html += '<p class="about-text">' + esc(a.text) + '</p>';
+      html += '</div>';
+      if (a.image) html += '<div class="about-fig"><img src="' + a.image + '" alt=""></div>';
+      card.innerHTML = html;
+      els.aboutList.appendChild(card);
+    });
+
+    if (currentTab === 'about' && document.body.classList.contains('entered')) revealAbouts(false);
+  }
+
+  function revealAbouts(instant) {
+    var cards = els.aboutList.querySelectorAll('.about-card');
+    for (var i = 0; i < cards.length; i++) {
+      (function (el, idx) {
+        if (instant) el.classList.add('in');
+        else setTimeout(function () { el.classList.add('in'); }, 60 + idx * 70);
+      })(cards[i], i);
+    }
+  }
+
+  els.tabBar.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.tab-btn') : null;
+    if (btn) switchTab(btn.getAttribute('data-tab'));
+  });
 
   /* ---------------- 进场动画 ---------------- */
   var entered = false;
@@ -941,6 +1127,7 @@
   /* ---------------- 编辑界面 ---------------- */
   var draft = null;
   var iconTargetId = null;
+  var aboutImgTargetId = null;
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -955,6 +1142,7 @@
     els.editor.classList.remove('open');
     draft = null;
     iconTargetId = null;
+    aboutImgTargetId = null;
   }
 
   function fillEditor() {
@@ -964,6 +1152,7 @@
     els.edTagline.value = draft.tagline || '';
     els.edBio.value = draft.bio || '';
     renderWorkRows();
+    renderAboutRows();
   }
 
   function rowHTML(w) {
@@ -990,6 +1179,81 @@
     }
     els.workRows.innerHTML = draft.works.map(rowHTML).join('');
   }
+
+  /* ---------------- 个人介绍页编辑 ---------------- */
+  function aboutRowHTML(a) {
+    var thumb = a.image ? '<img src="' + a.image + '" alt="">' : '<span style="font-size:11px;color:rgba(17,17,17,.4)">无图</span>';
+    return '' +
+      '<div class="work-row" data-id="' + esc(a.id) + '">' +
+        '<div class="wr-main">' +
+          '<input type="text" data-k="title" value="' + esc(a.title) + '" placeholder="卡片标题">' +
+          '<textarea data-k="text" rows="3" placeholder="说明文字（可换行）">' + esc(a.text) + '</textarea>' +
+          '<div class="wr-iconline">' +
+            '<div class="wr-thumb">' + thumb + '</div>' +
+            '<button class="btn tiny" type="button" data-act="pick-img">图片</button>' +
+            '<button class="btn tiny btn-text" type="button" data-act="clear-img">移除图片</button>' +
+          '</div>' +
+        '</div>' +
+        '<button class="wr-del" type="button" data-act="del" title="删除">&#10005;</button>' +
+      '</div>';
+  }
+
+  function renderAboutRows() {
+    if (!draft.abouts.length) {
+      els.aboutRows.innerHTML = '<p class="hint" style="margin:0 0 4px">还没有卡片，点右上角「+ 添加卡片」。</p>';
+      return;
+    }
+    els.aboutRows.innerHTML = draft.abouts.map(aboutRowHTML).join('');
+  }
+
+  function getDraftAbout(id) {
+    for (var i = 0; i < draft.abouts.length; i++) if (draft.abouts[i].id === id) return draft.abouts[i];
+    return null;
+  }
+
+  els.aboutRows.addEventListener('input', function (e) {
+    var t = e.target;
+    var row = t.closest ? t.closest('.work-row') : null;
+    if (!row || !t.dataset.k) return;
+    var a = getDraftAbout(row.dataset.id);
+    if (!a) return;
+    a[t.dataset.k] = t.value;
+  });
+
+  els.aboutRows.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!btn) return;
+    var row = btn.closest('.work-row');
+    if (!row) return;
+    var id = row.getAttribute('data-id');
+    var act = btn.getAttribute('data-act');
+
+    if (act === 'del') {
+      draft.abouts = draft.abouts.filter(function (a) { return a.id !== id; });
+      renderAboutRows();
+    } else if (act === 'pick-img') {
+      aboutImgTargetId = id;
+      els.fileAboutImg.value = '';
+      els.fileAboutImg.click();
+    } else if (act === 'clear-img') {
+      var a = getDraftAbout(id);
+      if (!a) return;
+      a.image = '';
+      renderAboutRows();
+    }
+  });
+
+  $('#btnAddAbout').addEventListener('click', function () {
+    draft.abouts.push({ id: uid(), title: '', text: '', image: '' });
+    renderAboutRows();
+    var rows = els.aboutRows.querySelectorAll('.work-row');
+    var last = rows[rows.length - 1];
+    if (last) {
+      var inp = last.querySelector('[data-k="title"]');
+      if (inp) inp.focus();
+      last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
 
   function getDraftWork(id) {
     for (var i = 0; i < draft.works.length; i++) if (draft.works[i].id === id) return draft.works[i];
@@ -1078,6 +1342,40 @@
     });
   }
 
+  /* 非正方形：按比例缩放到限制尺寸内，不裁剪（用于个人介绍页配图） */
+  function shrinkImageFit(file, maxW, maxH, mime) {
+    return new Promise(function (resolve, reject) {
+      if (!file || !/^image\//.test(file.type)) return reject(new Error('not-image'));
+      var reader = new FileReader();
+      reader.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var scale = Math.min(maxW / img.width, maxH / img.height, 1);
+            var w = Math.max(1, Math.round(img.width * scale));
+            var h = Math.max(1, Math.round(img.height * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            var ctx = canvas.getContext('2d');
+            if (mime === 'image/jpeg') {
+              ctx.fillStyle = '#f2f3f5';
+              ctx.fillRect(0, 0, w, h);
+            }
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL(mime, 0.86));
+          } catch (err) { reject(err); }
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   $('#btnAvatar').addEventListener('click', function () {
     els.fileAvatar.value = '';
     els.fileAvatar.click();
@@ -1120,6 +1418,25 @@
     });
   });
 
+  els.fileAboutImg.addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f || !aboutImgTargetId) return;
+    var id = aboutImgTargetId;
+    shrinkImageFit(f, 720, 560, 'image/jpeg').then(function (url) {
+      var a = getDraftAbout(id);
+      if (!a) return;
+      a.image = url;
+      var row = els.aboutRows.querySelector('.work-row[data-id="' + id + '"]');
+      if (row) {
+        var th = row.querySelector('.wr-thumb');
+        if (th) th.innerHTML = '<img src="' + url + '" alt="">';
+      }
+      toast('图片已加上，记得点保存');
+    }).catch(function () {
+      toast('这张图片读不出来，换一张试试');
+    });
+  });
+
   /* ---------------- 保存 / 导出 / 导入 ---------------- */
   function normUrl(u) {
     u = (u || '').trim();
@@ -1140,13 +1457,23 @@
       };
     }).filter(function (w) { return w.title || w.link; });
 
+    var abouts = draft.abouts.map(function (a) {
+      return {
+        id: a.id || uid(),
+        title: (a.title || '').trim(),
+        text: (a.text || '').trim(),
+        image: a.image || ''
+      };
+    }).filter(function (a) { return a.title || a.text || a.image; });
+
     data = normalize({
       avatar: draft.avatar,
       welcome: (draft.welcome || '').trim(),
       name: (draft.name || '').trim(),
       tagline: (draft.tagline || '').trim(),
       bio: (draft.bio || '').replace(/\s+$/, ''),
-      works: works
+      works: works,
+      abouts: abouts
     });
 
     if (!persist()) {
@@ -1197,7 +1524,15 @@
           icon: w.icon || '',
           link: normUrl(w.link)
         };
-      }).filter(function (w) { return w.title || w.link; })
+      }).filter(function (w) { return w.title || w.link; }),
+      abouts: draft.abouts.map(function (a) {
+        return {
+          id: a.id || uid(),
+          title: (a.title || '').trim(),
+          text: (a.text || '').trim(),
+          image: a.image || ''
+        };
+      }).filter(function (a) { return a.title || a.text || a.image; })
     };
   }
 
